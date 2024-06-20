@@ -78,8 +78,21 @@ class TransformHandPositionCoords(Component):
 
         return [origin_coord, cross_product, palm_normal, palm_direction]
 
+    # Create a coordinate frame for the arm
+    def _get_hand_dir_frame_left(self, origin_coord, index_knuckle_coord, pinky_knuckle_coord):
+        # Calculating the transform in Left Handed system itself as unity being left hand coordinate system. This transform sends the frame in the form of vectors in Left Hand coordinate frame. Since we use only the relative transform between the hand movements the coordinate system does not matter. 
+        # We find the relative transformation between the hand moving frames and use that to find the transformation in the robot frame and this does not depend on the coordinate system
+        
+        palm_normal = normalize_vector(np.cross(pinky_knuckle_coord,index_knuckle_coord))   # Unity space Y  
+        palm_direction = normalize_vector(pinky_knuckle_coord+index_knuckle_coord)         # Unity space Z            
+        cross_product = normalize_vector(pinky_knuckle_coord-index_knuckle_coord)         # Unity space X 
+
+        return [origin_coord, cross_product, palm_normal, palm_direction]
+
+
+
     # Function to transform the hand keypoints to the robot frame
-    def transform_keypoints(self, hand_coords):
+    def transform_keypoints_left(self, hand_coords):
        
         translated_coords = self._translate_coords(hand_coords)  # Finding hand coords with respect to the wrist
 
@@ -92,6 +105,27 @@ class TransformHandPositionCoords(Component):
         
         transformed_hand_coords = (rotation_matrix @ translated_coords.T).T # Find the transformed hand coordinates in the robot frame
         # Find the transformed arm frame using knuckle coords
+        hand_dir_frame = self._get_hand_dir_frame_left(
+            hand_coords[0],
+            translated_coords[self.knuckle_points[0]], 
+            translated_coords[self.knuckle_points[1]]
+        )
+
+        return transformed_hand_coords, hand_dir_frame
+    
+    def transform_keypoints_right(self, hand_coords):
+    
+        translated_coords = self._translate_coords(hand_coords)  # Finding hand coords with respect to the wrist
+
+        original_coord_frame = self._get_coord_frame(           # Finding the original coordinate frame
+            translated_coords[self.knuckle_points[0]], 
+            translated_coords[self.knuckle_points[1]]
+        )
+        
+        rotation_matrix = np.linalg.solve(original_coord_frame, np.eye(3)).T # Finding the rotation matrix and rotating the coordinates
+        
+        transformed_hand_coords = (rotation_matrix @ translated_coords.T).T # Find the transformed hand coordinates in the robot frame
+        # Find the transformed arm frame using knuckle coords
         hand_dir_frame = self._get_hand_dir_frame(
             hand_coords[0],
             translated_coords[self.knuckle_points[0]], 
@@ -99,6 +133,8 @@ class TransformHandPositionCoords(Component):
         )
 
         return transformed_hand_coords, hand_dir_frame
+    
+    
 
     def stream(self):
         while True:
@@ -109,8 +145,8 @@ class TransformHandPositionCoords(Component):
                 data_type, hand_coords_right = self._get_hand_coords_right()
 
                 # Find the transformed hand coordinates and the transformed hand local frame
-                transformed_hand_coords_left, translated_hand_coord_frame_left = self.transform_keypoints(hand_coords_left)
-                transformed_hand_coords_right, translated_hand_coord_frame_right = self.transform_keypoints(hand_coords_right)
+                transformed_hand_coords_left, translated_hand_coord_frame_left = self.transform_keypoints_left(hand_coords_left)
+                transformed_hand_coords_right, translated_hand_coord_frame_right = self.transform_keypoints_right(hand_coords_right)
  
                 
                 # transformed_hand_coords=np.stack((transformed_hand_coords_right[0], transformed_hand_coords_left[1:]),axis=0)
@@ -119,9 +155,10 @@ class TransformHandPositionCoords(Component):
                 # print(transformed_hand_coords_right[1:].shape)
                 #translated_hand_coord_frame=np.stack((translated_hand_coord_frame_right[0], translated_hand_coord_frame_left[1:]),axis=0)
                 #print(translated_hand_coord_frame.shape)
+                
                 # Passing the transformed coords into a moving average to filter the noise. The higher the moving average limit, the more the noise is filtered. But values higher than 50 might make the keypoint less responsive.
                 self.averaged_hand_coords = moving_average(
-                    transformed_hand_coords_left, 
+                    transformed_hand_coords_right, 
                     self.coord_moving_average_queue, 
                     self.moving_average_limit
                 )
@@ -142,9 +179,9 @@ class TransformHandPositionCoords(Component):
                 self.transformed_keypoint_publisher.pub_keypoints(self.averaged_hand_coords, 'transformed_hand_coords')
                 # Publish the transformed hand frame
                 if data_type == 'absolute':
-                    t=averaged_hand_frame_right[0]
-                    self.averaged_hand_frame=np.concatenate((t[[0,2,1]].reshape(1,-1), averaged_hand_frame_left[1:]),axis=0)
-                    #print(self.averaged_hand_frame)
+                    self.averaged_hand_frame=np.concatenate((averaged_hand_frame_right[0].reshape(1,-1), averaged_hand_frame_left[1:]),axis=0)
+                    #self.averaged_hand_frame = (averaged_hand_frame_left + averaged_hand_frame_right)/2
+                    #print(self.averaged_hand_fr
                     self.transformed_keypoint_publisher.pub_keypoints(self.averaged_hand_frame, 'transformed_hand_frame')
                     
                     
