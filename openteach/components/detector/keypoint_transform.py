@@ -109,29 +109,45 @@ class TransformHandPositionCoords(Component):
                 data_type, hand_coords_right = self._get_hand_coords_right()
 
                 # Find the transformed hand coordinates and the transformed hand local frame
-                _, translated_hand_coord_frame_left = self.transform_keypoints(hand_coords_left)
-                transformed_hand_coords_right, _ = self.transform_keypoints(hand_coords_right)
-
+                transformed_hand_coords_left, translated_hand_coord_frame_left = self.transform_keypoints(hand_coords_left)
+                transformed_hand_coords_right, translated_hand_coord_frame_right = self.transform_keypoints(hand_coords_right)
+ 
+                
+                # transformed_hand_coords=np.stack((transformed_hand_coords_right[0], transformed_hand_coords_left[1:]),axis=0)
+                #translated_hand_coord_frame=np.stack((translated_hand_coord_frame_right[0], translated_hand_coord_frame_left[1:]),axis=0)
+                # print(transformed_hand_coords_right[0].shape)
+                # print(transformed_hand_coords_right[1:].shape)
+                #translated_hand_coord_frame=np.stack((translated_hand_coord_frame_right[0], translated_hand_coord_frame_left[1:]),axis=0)
+                #print(translated_hand_coord_frame.shape)
                 # Passing the transformed coords into a moving average to filter the noise. The higher the moving average limit, the more the noise is filtered. But values higher than 50 might make the keypoint less responsive.
                 self.averaged_hand_coords = moving_average(
-                    transformed_hand_coords_right, 
+                    transformed_hand_coords_left, 
                     self.coord_moving_average_queue, 
                     self.moving_average_limit
                 )
 
                 # Passing the transformed frame into a moving average to filter the noise. The higher the moving average limit, the more the noise is filtered. But the
-                self.averaged_hand_frame = moving_average(
+                averaged_hand_frame_left = moving_average(
                     translated_hand_coord_frame_left, 
                     self.frame_moving_average_queue, 
                     self.moving_average_limit
                 )
+                
+                averaged_hand_frame_right = moving_average(
+                    translated_hand_coord_frame_right, 
+                    self.frame_moving_average_queue, 
+                    self.moving_average_limit
+                )
                 # Publish the transformed hand coordinates
-                print(self.averaged_hand_coords)
-                print(self.averaged_hand_frame)
                 self.transformed_keypoint_publisher.pub_keypoints(self.averaged_hand_coords, 'transformed_hand_coords')
                 # Publish the transformed hand frame
                 if data_type == 'absolute':
+                    t=averaged_hand_frame_right[0]
+                    self.averaged_hand_frame=np.concatenate((t[[0,2,1]].reshape(1,-1), averaged_hand_frame_left[1:]),axis=0)
+                    #print(self.averaged_hand_frame)
                     self.transformed_keypoint_publisher.pub_keypoints(self.averaged_hand_frame, 'transformed_hand_frame')
+                    
+                    
                 
                 # End the timer
                 self.timer.end_loop()

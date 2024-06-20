@@ -38,13 +38,9 @@ class TransformHandPositionCoords(Component):
 
     # Create a coordinate frame for the hand
     def _get_coord_frame(self, index_knuckle_coord, pinky_knuckle_coord):
-        # palm_normal = normalize_vector(np.cross(index_knuckle_coord, pinky_knuckle_coord))   # Current Z
-        # palm_direction = normalize_vector(index_knuckle_coord + pinky_knuckle_coord)         # Current Y
-        # cross_product = normalize_vector(np.cross(palm_direction, palm_normal))              # Current X
-        palm_normal = np.cross(index_knuckle_coord, pinky_knuckle_coord)   # Current Z
-        palm_direction = index_knuckle_coord + pinky_knuckle_coord        # Current Y
-        cross_product = np.cross(palm_direction, palm_normal)          
-
+        palm_normal = normalize_vector(np.cross(index_knuckle_coord, pinky_knuckle_coord))   # Current Z
+        palm_direction = normalize_vector(index_knuckle_coord + pinky_knuckle_coord)         # Current Y
+        cross_product = normalize_vector(np.cross(palm_direction, palm_normal))              # Current X
         return [cross_product, palm_direction, palm_normal]
 
     # Create a coordinate frame for the arm 
@@ -97,8 +93,7 @@ class TransformHandPositionCoords(Component):
                     self.frame_moving_average_queue, 
                     self.moving_average_limit
                 )
-                print(self.averaged_hand_coords)
-                print(self.averaged_hand_frame)
+
 
                 self.transformed_keypoint_publisher.pub_keypoints(self.averaged_hand_coords, 'transformed_hand_coords')
                 if data_type == 'absolute':
