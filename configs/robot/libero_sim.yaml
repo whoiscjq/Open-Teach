@@ -60,8 +60,8 @@ environment:
     stream_oculus: true
     suite_name: libero_90
     # task_name: LIVING_ROOM_SCENE3_pick_up_the_cream_cheese_and_put_it_in_the_tray #KITCHEN_SCENE7_open_the_microwave
-    # task_name: KITCHEN_SCENE3_put_the_moka_pot_on_the_stove
-    task_name: LIVING_ROOM_SCENE2_pick_up_the_alphabet_soup_and_put_it_in_the_basket
+    task_name: KITCHEN_SCENE3_put_the_moka_pot_on_the_stove
+    # task_name: LIVING_ROOM_SCENE2_pick_up_the_alphabet_soup_and_put_it_in_the_basket
 
 
 port_configs:
